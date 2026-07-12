@@ -23,6 +23,7 @@
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="" />
     <None Include="$(MSBuildThisFileDirectory)..\..\NOTICE" Pack="true" PackagePath="" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\assets\cswebui-logo.svg" Pack="true" PackagePath="assets/" />
   </ItemGroup>
 
   <ItemGroup Condition="Exists('$(NativeAssetsRoot)')">

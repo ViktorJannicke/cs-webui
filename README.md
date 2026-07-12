@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/cswebui-logo.svg" width="520" alt="CsWebUi">
+</p>
+
 # CsWebUi
 
 Modern .NET 10 bindings for [WebUI](https://github.com/webui-dev/webui): use an installed browser or supported WebView as a lightweight cross-platform desktop UI.

@@ -18,5 +18,6 @@
   <ItemGroup>
     <ProjectReference Include="../CsWebUi.Native/CsWebUi.Native.csproj" />
     <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\assets\cswebui-logo.svg" Pack="true" PackagePath="assets/" />
   </ItemGroup>
 </Project>

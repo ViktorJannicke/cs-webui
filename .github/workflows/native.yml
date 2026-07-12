@@ -108,7 +108,8 @@ jobs:
         run: >-
           dotnet pack src/CsWebUi.Native/CsWebUi.Native.csproj
           --configuration Release --no-restore --output artifacts/packages
-          -p:NativeAssetsRoot=artifacts/native -p:RequireNativeAssets=true
+          -p:NativeAssetsRoot=${{ github.workspace }}/artifacts/native
+          -p:RequireNativeAssets=true
 
       - name: Pack high-level package
         run: >-
