@@ -1,0 +1,8 @@
+CsWebUi is an independent .NET binding for WebUI.
+
+Bundled native assets are built from WebUI, Copyright (c) 2020-2026 Hassan
+Draga and contributors, distributed under the MIT License:
+https://github.com/webui-dev/webui
+
+The upstream source revision used by this repository is recorded in flake.nix
+and the native-build workflow.

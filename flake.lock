@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1783776592,
+        "narHash": "sha256-UgCQzxeWI75XM8G+hPrPh+MKzEPjG3SpAj7dtqSbksA=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e7a3ca8092b61ff85b6a45bf863ea2b2d6a661b3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "webui": "webui"
+      }
+    },
+    "webui": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781888512,
+        "narHash": "sha256-10G5ZXa+grkTawpugYP2HqECiV5QOx+9EvoK/6Sza44=",
+        "owner": "webui-dev",
+        "repo": "webui",
+        "rev": "6c561ed739ce415e1e48ed17cb67c880aff1dc9d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "webui-dev",
+        "repo": "webui",
+        "rev": "6c561ed739ce415e1e48ed17cb67c880aff1dc9d",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

@@ -1,0 +1,123 @@
+name: Native WebUI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: WebUI (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: windows-2022
+            rid: win-x64
+          - os: macos-15-intel
+            rid: osx-x64
+          - os: macos-14
+            rid: osx-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out pinned WebUI source
+        uses: actions/checkout@v4
+        with:
+          repository: webui-dev/webui
+          ref: 6c561ed739ce415e1e48ed17cb67c880aff1dc9d
+          path: .upstream/webui
+
+      - name: Validate the raw ABI export surface
+        shell: bash
+        run: bash eng/validate-webui-abi.sh .upstream/webui/include/webui.h
+
+      - name: Configure shared library
+        run: >-
+          cmake -S .upstream/webui -B native-build
+          -DBUILD_SHARED_LIBS=ON
+          -DWEBUI_BUILD_EXAMPLES=OFF
+          -DWEBUI_OUT_LIB_NAME=webui-2
+          -DWEBUI_USE_TLS=OFF
+
+      - name: Build shared library
+        run: cmake --build native-build --config Release --parallel
+
+      - name: Install shared library
+        run: cmake --install native-build --prefix native-install --config Release
+
+      - name: Upload native asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: webui-native-${{ matrix.rid }}
+          path: native-install
+          if-no-files-found: error
+
+  package:
+    name: Pack NuGet runtime assets
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/download
+
+      - name: Assemble RID native assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/native/{win-x64,linux-x64,linux-arm64,osx-x64,osx-arm64}
+          cp artifacts/download/webui-native-win-x64/bin/webui-2.dll artifacts/native/win-x64/webui-2.dll
+          cp artifacts/download/webui-native-linux-x64/lib/libwebui-2.so artifacts/native/linux-x64/libwebui-2.so
+          cp artifacts/download/webui-native-linux-arm64/lib/libwebui-2.so artifacts/native/linux-arm64/libwebui-2.so
+          cp artifacts/download/webui-native-osx-x64/lib/libwebui-2.dylib artifacts/native/osx-x64/libwebui-2.dylib
+          cp artifacts/download/webui-native-osx-arm64/lib/libwebui-2.dylib artifacts/native/osx-arm64/libwebui-2.dylib
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore CsWebUi.sln
+
+      - name: Publish and run the NativeAOT smoke test
+        shell: bash
+        run: |
+          dotnet publish samples/CsWebUi.NativeAotSmoke/CsWebUi.NativeAotSmoke.csproj \
+            --configuration Release --runtime linux-x64 --self-contained true --output artifacts/native-aot
+          CSWEBUI_NATIVE_LIBRARY=artifacts/native/linux-x64/libwebui-2.so artifacts/native-aot/CsWebUi.NativeAotSmoke
+
+      - name: Pack native package
+        run: >-
+          dotnet pack src/CsWebUi.Native/CsWebUi.Native.csproj
+          --configuration Release --no-restore --output artifacts/packages
+          -p:NativeAssetsRoot=artifacts/native -p:RequireNativeAssets=true
+
+      - name: Pack high-level package
+        run: >-
+          dotnet pack src/CsWebUi/CsWebUi.csproj
+          --configuration Release --no-restore --output artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages/*.*nupkg
+          if-no-files-found: error

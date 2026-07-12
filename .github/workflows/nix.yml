@@ -1,0 +1,31 @@
+name: Nix
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flake:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v20
+
+      - name: Check flake outputs
+        run: nix flake check --accept-flake-config
+
+      - name: Build native WebUI package
+        run: nix build .#webui-native --accept-flake-config
+
+      - name: Verify the development shell
+        run: nix develop .#default --accept-flake-config -c dotnet --info

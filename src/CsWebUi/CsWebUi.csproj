@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <AssemblyName>CsWebUi</AssemblyName>
+    <RootNamespace>CsWebUi</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591;CA1720</NoWarn>
+    <PackageId>CsWebUi</PackageId>
+    <Description>Safe, ergonomic .NET 10 window and callback abstractions for WebUI.</Description>
+    <PackageTags>webui;dotnet;bindings;aot;desktop</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CsWebUi.Native/CsWebUi.Native.csproj" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CsWebUi High-Level Sample</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="webui.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">.NET 10 + WebUI</p>
+      <h1>High-Level API sample</h1>
+      <p>Every control below calls a managed <code>CsWebUi</code> handler.</p>
+      <div class="status-row">
+        <span id="connection-status" class="status">Connecting…</span>
+        <button class="ghost" id="refresh-status" type="button">Refresh backend status</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Typed synchronous callback</h2>
+        <p>Two JavaScript numbers become <code>double</code> values in .NET.</p>
+        <label>First number <input id="left" type="number" value="19.5" step="any"></label>
+        <label>Second number <input id="right" type="number" value="22.5" step="any"></label>
+        <button id="calculate-button" type="button">Add in .NET</button>
+        <output id="calculation-result">Awaiting input</output>
+      </article>
+
+      <article class="card">
+        <h2>Asynchronous callback</h2>
+        <p>The promise resolves after a cancellation-aware .NET delay.</p>
+        <label>Your name <input id="name" value="WebUI"></label>
+        <button id="greet" type="button">Request greeting</button>
+        <output id="greeting-result">Awaiting greeting</output>
+      </article>
+
+      <article class="card">
+        <h2>Raw binary channel</h2>
+        <p>Send UTF-8 bytes to .NET; the backend broadcasts them back through <code>SendRaw</code>.</p>
+        <label>Message <input id="raw-message" value="Hello from JavaScript"></label>
+        <button id="send-raw" type="button">Round-trip bytes</button>
+        <output id="raw-result">Awaiting bytes</output>
+      </article>
+
+      <article class="card">
+        <h2>Window and browser commands</h2>
+        <p>These controls show commands that do not need to return data.</p>
+        <label class="toggle"><input id="kiosk" type="checkbox"> Request kiosk mode</label>
+        <div class="button-row">
+          <button id="backend-notification" type="button">Run backend JavaScript</button>
+          <button id="open-webui" type="button">Open webui.me</button>
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      <button class="danger" id="exit" type="button">Close application</button>
+    </footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
