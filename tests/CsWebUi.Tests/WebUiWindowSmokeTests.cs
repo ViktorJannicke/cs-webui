@@ -5,17 +5,16 @@ namespace CsWebUi.Tests;
 
 public sealed class WebUiWindowSmokeTests
 {
-    [Fact]
+    [NativeFact]
+    public async Task WaitAsyncCompletesWhenNoWindowIsShown()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await WebUiApplication.WaitAsync(timeout.Token);
+    }
+
+    [NativeFact]
     public void HighLevelWindowOwnsAndDestroysANativeWindowWhenConfigured()
     {
-        var libraryPath = Environment.GetEnvironmentVariable("CSWEBUI_NATIVE_LIBRARY");
-        if (string.IsNullOrWhiteSpace(libraryPath))
-        {
-            return;
-        }
-
-        WebUiNativeLibrary.SetLibraryPath(libraryPath);
-
         using var window = new WebUiWindow();
         Assert.NotEqual((nuint)0, window.Id);
         Assert.False(window.IsShown);

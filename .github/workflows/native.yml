@@ -5,6 +5,7 @@ on:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -34,11 +35,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read pinned WebUI revision
+        id: webui-revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=$(jq -er '.nodes.webui.locked.rev | select(test("^[0-9a-f]{40}$"))' flake.lock)
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
       - name: Check out pinned WebUI source
         uses: actions/checkout@v4
         with:
           repository: webui-dev/webui
-          ref: 6c561ed739ce415e1e48ed17cb67c880aff1dc9d
+          ref: ${{ steps.webui-revision.outputs.revision }}
           path: .upstream/webui
 
       - name: Validate the raw ABI export surface
@@ -96,6 +105,11 @@ jobs:
 
       - name: Restore
         run: dotnet restore CsWebUi.sln
+
+      - name: Run tests against the native library
+        env:
+          CSWEBUI_NATIVE_LIBRARY: ${{ github.workspace }}/artifacts/native/linux-x64/libwebui-2.so
+        run: dotnet test CsWebUi.sln --configuration Release --no-restore
 
       - name: Publish and run the NativeAOT smoke test
         shell: bash

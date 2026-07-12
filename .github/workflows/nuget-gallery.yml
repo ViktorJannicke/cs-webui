@@ -1,0 +1,76 @@
+name: NuGet Gallery
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-gallery-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    name: Build release packages
+    uses: ./.github/workflows/native.yml
+
+  publish:
+    name: Publish to nuget.org
+    needs: packages
+    runs-on: ubuntu-24.04
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify release tag matches package version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          package_version=$(dotnet msbuild src/CsWebUi/CsWebUi.csproj -getProperty:PackageVersion -nologo)
+          expected_tag="v$package_version"
+          if [[ "$RELEASE_TAG" != "$expected_tag" ]]; then
+            echo "Release tag '$RELEASE_TAG' must match package version '$expected_tag'." >&2
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages
+
+      - name: Validate publisher configuration
+        shell: bash
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if [[ -z "$NUGET_USER" ]]; then
+            echo "Set the NUGET_USER variable in the 'nuget' GitHub environment." >&2
+            exit 1
+          fi
+
+      - name: Sign in to nuget.org with trusted publishing
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish packages
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: >-
+          dotnet nuget push artifacts/packages/*.nupkg
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

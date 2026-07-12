@@ -8,6 +8,7 @@ namespace CsWebUi;
 /// <summary>Provides process-wide WebUI configuration and lifetime operations.</summary>
 public static class WebUiApplication
 {
+    private static readonly TimeSpan AsyncWaitPollInterval = TimeSpan.FromMilliseconds(10);
     private static readonly object Gate = new();
     private static Action<WebUiLogLevel, string>? _logger;
 
@@ -63,12 +64,16 @@ public static class WebUiApplication
     public static void Wait() => WebUiNative.Wait();
 
     /// <summary>Asynchronously waits until all shown WebUI windows have closed.</summary>
+    /// <remarks>
+    /// WebUI exposes a non-blocking status check rather than a completion callback. This method
+    /// polls that status at a short fixed interval so it does not occupy a worker thread.
+    /// </remarks>
     public static async Task WaitAsync(CancellationToken cancellationToken = default)
     {
         while (WebUiNative.WaitAsync() != 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(AsyncWaitPollInterval, cancellationToken).ConfigureAwait(false);
         }
     }
 

@@ -5,17 +5,9 @@ namespace CsWebUi.Tests;
 
 public sealed unsafe class WebUiNativeSmokeTests
 {
-    [Fact]
+    [NativeFact]
     public void NativeLibraryLoadsAndProvidesCoreServicesWhenConfigured()
     {
-        var libraryPath = Environment.GetEnvironmentVariable("CSWEBUI_NATIVE_LIBRARY");
-        if (string.IsNullOrWhiteSpace(libraryPath))
-        {
-            return;
-        }
-
-        WebUiNativeLibrary.SetLibraryPath(libraryPath);
-
         Assert.NotEqual((nuint)0, WebUiNative.GetFreePort());
 
         var input = Encoding.UTF8.GetBytes("CsWebUi\0");

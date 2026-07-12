@@ -2,6 +2,7 @@ const byId = (id) => document.getElementById(id);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const sleep = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+let toastTimer;
 
 const setOutput = (id, value) => {
   byId(id).textContent = value;
@@ -11,7 +12,8 @@ window.showToast = (message) => {
   const toast = byId("toast");
   toast.textContent = message;
   toast.classList.add("visible");
-  window.setTimeout(() => toast.classList.remove("visible"), 3_000);
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 3_000);
 };
 
 window.receiveRaw = (bytes) => {
