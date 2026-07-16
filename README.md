@@ -51,6 +51,8 @@ WebUiApplication.Wait();
 
 Release packages bundle the standard, non-TLS WebUI shared library for `win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`. The raw TLS API remains available when an application supplies a secure custom WebUI build.
 
+The bundled Windows shared library statically links the MSVC runtime, matching the official WebUI Windows distribution and avoiding a separate Visual C++ Redistributable prerequisite.
+
 For a custom or locally built native library, configure it before the first WebUI call:
 
 ```csharp
