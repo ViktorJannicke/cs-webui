@@ -42,6 +42,95 @@ WebUiApplication.Wait();
 
 `WebUiWindow.Dispose()` destroys the native window and safely defers final destruction until active managed callbacks finish. Async bindings automatically opt WebUI into its asynchronous-response mode; return a `WebUiResult` to resolve the JavaScript promise.
 
+## Embed a Vite build
+
+The `CsWebUi` package can pack a complete Vite `dist` directory into an
+optimized manifest resource during build. The resource becomes part of the
+application assembly and therefore also remains inside a single-file
+executable:
+
+```xml
+<PropertyGroup>
+  <WebUiDist>..\ClientInstaller.WebUi\dist</WebUiDist>
+</PropertyGroup>
+```
+
+Load it once at startup, attach it to a window, and show its entry point:
+
+```csharp
+using System.Reflection;
+using CsWebUi;
+
+var files = WebUiVirtualFileSystem.FromEmbeddedArchive(
+    Assembly.GetExecutingAssembly());
+
+using var window = new WebUiWindow();
+window.SetVirtualFileSystem(files);
+window.Show("index.html");
+WebUiApplication.Wait();
+```
+
+The deterministic packer groups compressible content such as HTML, CSS,
+JavaScript, JSON, SVG, TTF, and WASM into one solid Brotli stream. Formats that
+are already compressed, including WOFF/WOFF2, PNG, JPEG, WebP, AVIF, ZIP, and
+video, are stored without another compression pass. Brotli is retained only
+when its measured result is smaller than the original group. A compact
+manifest records paths, offsets, lengths, and SHA-256 hashes.
+Packing is incremental: it reruns when the project, packer, target, or a file
+below `WebUiDist` is newer than the generated archive.
+
+Every compressed group is decompressed eagerly and retained in memory. Files
+are memory slices over their shared group buffers, avoiding a second copy of
+the full web application. Integrity is checked while loading. HTTP responses
+are built lazily in pinned managed memory, so no asset is extracted to disk.
+Paths are URL-decoded and traversal-safe, matching Vite references such as
+`/assets/index-D80-FDF7.js`. Missing files produce an in-memory 404 instead of
+falling through to the host file system.
+
+`WebUiDistExclude` accepts semicolon-separated, root-relative files that should
+not be packed. It defaults to `webui.tar.br`, preventing a previously generated
+archive from being nested into a new one:
+
+```xml
+<PropertyGroup>
+  <WebUiDistExclude>webui.tar.br;stats.html</WebUiDistExclude>
+</PropertyGroup>
+```
+
+For an externally produced archive, set `WebUiEmbeddedArchive` instead. ZIP
+and Brotli-compressed TAR (`.tar.br`) archives remain supported and are
+detected automatically:
+
+```xml
+<PropertyGroup>
+  <WebUiEmbeddedArchive>..\ClientInstaller.WebUi\dist\webui.tar.br</WebUiEmbeddedArchive>
+</PropertyGroup>
+```
+
+The default resource name is `CsWebUi.StaticFiles`. Set
+`WebUiEmbeddedResourceName` in the project and pass the same name to
+`FromEmbeddedArchive` when multiple or custom resources are needed.
+
+Client-side routers can opt into an `index.html` fallback:
+
+```csharp
+var files = WebUiVirtualFileSystem.FromEmbeddedArchive(
+    Assembly.GetExecutingAssembly(),
+    options: new WebUiVirtualFileSystemOptions
+    {
+        EnableSinglePageApplicationFallback = true,
+    });
+```
+
+`WebUiVirtualFileSystem.FromDirectory` provides the same serving behavior
+without embedding and is useful during development. Archive loading enforces
+configurable file-count and uncompressed-size limits to avoid accidental
+decompression bombs.
+
+WebUI disables its authentication-cookie check when any custom file handler is
+installed. Keep the window private (the default), and do not call
+`SetPublic(true)` for untrusted networks without adding an authentication layer.
+
 ## Packages
 
 | Package | Purpose |
