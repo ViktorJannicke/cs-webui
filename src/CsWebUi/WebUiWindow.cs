@@ -16,6 +16,7 @@ public sealed unsafe class WebUiWindow : IDisposable
     private readonly object _lifecycleGate = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly nuint _id;
+    private WebUiVirtualFileSystem? _virtualFileSystem;
     private int _callbacksInFlight;
     private int _disposeRequested;
     private int _destroyed;
@@ -250,6 +251,26 @@ public sealed unsafe class WebUiWindow : IDisposable
         fixed (byte* value = bytes)
         {
             return WebUiNative.SetRootFolder(_id, value) != 0;
+        }
+    }
+
+    /// <summary>
+    /// Serves files for this window from an immutable in-memory virtual file system.
+    /// </summary>
+    /// <remarks>
+    /// Call this before <see cref="Show(string)"/> or <see cref="StartServer(string)"/>.
+    /// The file system is retained for the lifetime of the window and may be shared by
+    /// multiple windows.
+    /// </remarks>
+    public void SetVirtualFileSystem(WebUiVirtualFileSystem fileSystem)
+    {
+        ArgumentNullException.ThrowIfNull(fileSystem);
+
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            Volatile.Write(ref _virtualFileSystem, fileSystem);
+            WebUiNative.SetFileHandlerWindow(_id, &FileHandlerTrampoline);
         }
     }
 
@@ -492,6 +513,43 @@ public sealed unsafe class WebUiWindow : IDisposable
         window.Dispatch(nativeEvent);
     }
 
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void* FileHandlerTrampoline(nuint windowId, byte* path, int* length)
+    {
+        if (length is null)
+        {
+            return null;
+        }
+
+        *length = 0;
+        try
+        {
+            if (!Windows.TryGetValue(windowId, out var window)
+                || Volatile.Read(ref window._virtualFileSystem) is not { } fileSystem)
+            {
+                return null;
+            }
+
+            var response = fileSystem.GetHttpResponse(Utf8.DecodeRequired(path));
+            fixed (byte* pointer = response)
+            {
+                *length = response.Length;
+                if (WebUiApplication.AsynchronousResponsesEnabled)
+                {
+                    WebUiNative.InterfaceSetResponseFileHandler(windowId, pointer, response.Length);
+                    return null;
+                }
+
+                return pointer;
+            }
+        }
+        catch
+        {
+            // No managed exception may cross the native HTTP callback boundary.
+            return null;
+        }
+    }
+
     private void Dispatch(WebUiEventNative* nativeEvent)
     {
         if (!TryBeginCallback())
@@ -607,6 +665,7 @@ public sealed unsafe class WebUiWindow : IDisposable
 
         Windows.TryRemove(_id, out _);
         WebUiNative.Destroy(_id);
+        Volatile.Write(ref _virtualFileSystem, null);
         _shutdown.Dispose();
     }
 

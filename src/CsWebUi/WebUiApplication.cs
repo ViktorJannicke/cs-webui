@@ -11,6 +11,7 @@ public static class WebUiApplication
     private static readonly TimeSpan AsyncWaitPollInterval = TimeSpan.FromMilliseconds(10);
     private static readonly object Gate = new();
     private static Action<WebUiLogLevel, string>? _logger;
+    private static int _asynchronousResponsesEnabled;
 
     /// <summary>Occurs when a managed binding throws before its response is sent.</summary>
     public static event EventHandler<WebUiUnhandledCallbackExceptionEventArgs>? UnhandledCallbackException;
@@ -20,7 +21,13 @@ public static class WebUiApplication
 
     /// <summary>Sets a process-wide WebUI configuration option.</summary>
     public static void SetConfiguration(WebUiConfiguration configuration, bool enabled)
-        => WebUiNative.SetConfig((CsWebUi.Native.WebUiConfig)configuration, NativeBoolean(enabled));
+    {
+        WebUiNative.SetConfig((CsWebUi.Native.WebUiConfig)configuration, NativeBoolean(enabled));
+        if (configuration == WebUiConfiguration.AsynchronousResponse)
+        {
+            Volatile.Write(ref _asynchronousResponsesEnabled, enabled ? 1 : 0);
+        }
+    }
 
     /// <summary>Sets the maximum number of seconds WebUI waits for a client to connect.</summary>
     public static void SetConnectionTimeout(nuint seconds)
@@ -108,6 +115,9 @@ public static class WebUiApplication
         => WebUiNative.BrowserExist((nuint)browser) != 0;
 
     internal static byte NativeBoolean(bool value) => value ? (byte)1 : (byte)0;
+
+    internal static bool AsynchronousResponsesEnabled
+        => Volatile.Read(ref _asynchronousResponsesEnabled) != 0;
 
     internal static unsafe WebUiException CreateNativeException()
     {
