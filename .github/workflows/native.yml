@@ -10,28 +10,19 @@ on:
 permissions:
   contents: read
 
+env:
+  WEBVIEW2_SDK_VERSION: 1.0.4078.44
+
 concurrency:
   group: native-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: WebUI (${{ matrix.rid }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            rid: linux-x64
-          - os: ubuntu-24.04-arm
-            rid: linux-arm64
-          - os: windows-2022
-            rid: win-x64
-          - os: macos-15-intel
-            rid: osx-x64
-          - os: macos-14
-            rid: osx-arm64
+  prepare:
+    name: Validate pinned WebUI source
+    runs-on: ubuntu-24.04
+    outputs:
+      revision: ${{ steps.webui-revision.outputs.revision }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +45,34 @@ jobs:
         shell: bash
         run: bash eng/validate-webui-abi.sh .upstream/webui/include/webui.h
 
+  build:
+    name: WebUI (${{ matrix.rid }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: windows-2022
+            rid: win-x64
+          - os: macos-15-intel
+            rid: osx-x64
+          - os: macos-14
+            rid: osx-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out pinned WebUI source
+        uses: actions/checkout@v4
+        with:
+          repository: webui-dev/webui
+          ref: ${{ needs.prepare.outputs.revision }}
+          path: .upstream/webui
+
       - name: Configure shared library
         run: >-
           cmake -S .upstream/webui -B native-build
@@ -68,6 +87,44 @@ jobs:
 
       - name: Install shared library
         run: cmake --install native-build --prefix native-install --config Release
+
+      - name: Configure static Windows library
+        if: matrix.rid == 'win-x64'
+        run: >-
+          cmake -S .upstream/webui -B native-static-build
+          -DBUILD_SHARED_LIBS=OFF
+          -DWEBUI_BUILD_EXAMPLES=OFF
+          -DWEBUI_OUT_LIB_NAME=webui-2
+          -DWEBUI_USE_TLS=OFF
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          -DCMAKE_C_FLAGS=/DWEBUI_WEBVIEW_STATIC
+          -DCMAKE_CXX_FLAGS=/DWEBUI_WEBVIEW_STATIC
+
+      - name: Build and install static Windows library
+        if: matrix.rid == 'win-x64'
+        run: |
+          cmake --build native-static-build --config Release --parallel
+          cmake --install native-static-build --prefix native-static-install --config Release
+
+      - name: Acquire static WebView2 loader
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $packageUri = "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$env:WEBVIEW2_SDK_VERSION/microsoft.web.webview2.$env:WEBVIEW2_SDK_VERSION.nupkg"
+          $packagePath = Join-Path $env:RUNNER_TEMP "microsoft.web.webview2.nupkg"
+          $packageRoot = Join-Path $env:RUNNER_TEMP "microsoft.web.webview2"
+
+          Invoke-WebRequest -Uri $packageUri -OutFile $packagePath
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($packagePath, $packageRoot)
+
+          $loader = Join-Path $packageRoot "build/native/x64/WebView2LoaderStatic.lib"
+          if (-not (Test-Path -LiteralPath $loader)) {
+            throw "The WebView2 SDK package did not contain the x64 static loader."
+          }
+
+          New-Item -ItemType Directory -Path native-install/static -Force | Out-Null
+          Copy-Item -LiteralPath native-static-install/lib/webui-2.lib -Destination native-install/static/webui-2.lib
+          Copy-Item -LiteralPath $loader -Destination native-install/static/WebView2LoaderStatic.lib
 
       - name: Verify Windows DLL has no dynamic MSVC runtime dependency
         if: matrix.rid == 'win-x64'
@@ -119,11 +176,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/native/{win-x64,linux-x64,linux-arm64,osx-x64,osx-arm64}
+          mkdir -p artifacts/native-static/win-x64
           cp artifacts/download/webui-native-win-x64/bin/webui-2.dll artifacts/native/win-x64/webui-2.dll
           cp artifacts/download/webui-native-linux-x64/lib/libwebui-2.so artifacts/native/linux-x64/libwebui-2.so
           cp artifacts/download/webui-native-linux-arm64/lib/libwebui-2.so artifacts/native/linux-arm64/libwebui-2.so
           cp artifacts/download/webui-native-osx-x64/lib/libwebui-2.dylib artifacts/native/osx-x64/libwebui-2.dylib
           cp artifacts/download/webui-native-osx-arm64/lib/libwebui-2.dylib artifacts/native/osx-arm64/libwebui-2.dylib
+          cp artifacts/download/webui-native-win-x64/static/webui-2.lib artifacts/native-static/win-x64/webui-2.lib
+          cp artifacts/download/webui-native-win-x64/static/WebView2LoaderStatic.lib artifacts/native-static/win-x64/WebView2LoaderStatic.lib
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -149,6 +209,7 @@ jobs:
           dotnet pack src/CsWebUi.Native/CsWebUi.Native.csproj
           --configuration Release --no-restore --output artifacts/packages
           -p:NativeAssetsRoot=${{ github.workspace }}/artifacts/native
+          -p:StaticNativeAssetsRoot=${{ github.workspace }}/artifacts/native-static
           -p:RequireNativeAssets=true
 
       - name: Pack high-level package
@@ -162,3 +223,160 @@ jobs:
           name: packages
           path: artifacts/packages/*.*nupkg
           if-no-files-found: error
+
+  dynamic-package-smoke:
+    name: Dynamic package smoke (${{ matrix.rid }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            native_library: libwebui-2.so
+            executable: CsWebUi.StaticPackageSmoke
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            native_library: libwebui-2.so
+            executable: CsWebUi.StaticPackageSmoke
+          - os: windows-2022
+            rid: win-x64
+            native_library: webui-2.dll
+            executable: CsWebUi.StaticPackageSmoke.exe
+          - os: macos-15-intel
+            rid: osx-x64
+            native_library: libwebui-2.dylib
+            executable: CsWebUi.StaticPackageSmoke
+          - os: macos-14
+            rid: osx-arm64
+            native_library: libwebui-2.dylib
+            executable: CsWebUi.StaticPackageSmoke
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages
+
+      - name: Restore package consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version=$(dotnet msbuild src/CsWebUi.Native/CsWebUi.Native.csproj -getProperty:PackageVersion -nologo | tr -d '\r')
+          if [[ -z "$package_version" ]]; then
+            echo "Could not determine the CsWebUi.Native package version." >&2
+            exit 1
+          fi
+
+          dotnet restore tests/CsWebUi.StaticPackageSmoke/CsWebUi.StaticPackageSmoke.csproj \
+            --runtime ${{ matrix.rid }} \
+            -p:CsWebUiPackageVersion="$package_version" \
+            --configfile tests/CsWebUi.StaticPackageSmoke/NuGet.config
+
+      - name: Publish and run dynamically linked consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version=$(dotnet msbuild src/CsWebUi.Native/CsWebUi.Native.csproj -getProperty:PackageVersion -nologo | tr -d '\r')
+          output=artifacts/dynamic-package-smoke
+
+          dotnet publish tests/CsWebUi.StaticPackageSmoke/CsWebUi.StaticPackageSmoke.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            --no-restore \
+            --output "$output" \
+            -p:CsWebUiPackageVersion="$package_version"
+
+          native_library="$output/${{ matrix.native_library }}"
+          if [[ ! -f "$native_library" ]]; then
+            echo "The default dynamic publish did not contain ${{ matrix.native_library }}." >&2
+            exit 1
+          fi
+
+          "$output/${{ matrix.executable }}"
+
+  static-package-smoke:
+    name: Static package smoke (win-x64)
+    needs: package
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages
+
+      - name: Restore package consumer
+        shell: pwsh
+        run: |
+          $packageVersion = dotnet msbuild src/CsWebUi.Native/CsWebUi.Native.csproj -getProperty:PackageVersion -nologo
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($packageVersion)) {
+            throw "Could not determine the CsWebUi.Native package version."
+          }
+
+          dotnet restore tests/CsWebUi.StaticPackageSmoke/CsWebUi.StaticPackageSmoke.csproj `
+            --runtime win-x64 `
+            -p:CsWebUiPackageVersion=$packageVersion `
+            --configfile tests/CsWebUi.StaticPackageSmoke/NuGet.config
+          if ($LASTEXITCODE -ne 0) {
+            throw "Package consumer restore failed."
+          }
+
+      - name: Publish and run statically linked consumer
+        shell: pwsh
+        run: |
+          $packageVersion = dotnet msbuild src/CsWebUi.Native/CsWebUi.Native.csproj -getProperty:PackageVersion -nologo
+          $output = Join-Path $PWD "artifacts/static-package-smoke"
+
+          dotnet publish tests/CsWebUi.StaticPackageSmoke/CsWebUi.StaticPackageSmoke.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --no-restore `
+            --output $output `
+            -p:CsWebUiPackageVersion=$packageVersion `
+            -p:CsWebUiStaticLink=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Static package consumer publish failed."
+          }
+
+          & "$output/CsWebUi.StaticPackageSmoke.exe"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Static package consumer failed with exit code $LASTEXITCODE."
+          }
+
+          if (Test-Path -LiteralPath "$output/webui-2.dll") {
+            throw "The statically linked publish unexpectedly contains webui-2.dll."
+          }
+          if (Test-Path -LiteralPath "$output/WebView2Loader.dll") {
+            throw "The statically linked publish unexpectedly contains WebView2Loader.dll."
+          }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          $dumpbin = Get-ChildItem "$visualStudio\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          $dependencies = & $dumpbin.FullName /DEPENDENTS "$output/CsWebUi.StaticPackageSmoke.exe" | Out-String
+          Write-Output $dependencies
+          if ($dependencies -match '(?im)^\s+(?:webui-2|WebView2Loader)\.dll\s*$') {
+            throw "The statically linked executable still imports a WebUI DLL."
+          }

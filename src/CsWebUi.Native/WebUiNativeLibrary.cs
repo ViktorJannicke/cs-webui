@@ -8,6 +8,10 @@ namespace CsWebUi.Native;
 /// Configures resolution of the native <c>webui-2</c> library before the first
 /// call into <see cref="WebUiNative"/>.
 /// </summary>
+/// <remarks>
+/// Dynamic library overrides are bypassed when an application is published with
+/// <c>CsWebUiStaticLink=true</c>.
+/// </remarks>
 public static class WebUiNativeLibrary
 {
     internal const string LibraryName = "webui-2";

@@ -12,18 +12,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  packages:
-    name: Build release packages
-    uses: ./.github/workflows/native.yml
-
-  publish:
-    name: Publish to nuget.org
-    needs: packages
+  preflight:
+    name: Validate release
     runs-on: ubuntu-24.04
-    environment: nuget
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +34,26 @@ jobs:
             echo "Release tag '$RELEASE_TAG' must match package version '$expected_tag'." >&2
             exit 1
           fi
+
+  packages:
+    name: Build release packages
+    needs: preflight
+    uses: ./.github/workflows/native.yml
+
+  publish:
+    name: Publish to nuget.org
+    needs: packages
+    runs-on: ubuntu-24.04
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
 
       - uses: actions/download-artifact@v4
         with:

@@ -20,7 +20,7 @@ env:
 
 jobs:
   managed:
-    name: Managed (${{ matrix.rid }})
+    name: Managed build/test (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
