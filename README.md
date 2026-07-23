@@ -53,6 +53,31 @@ Release packages bundle the standard, non-TLS WebUI shared library for `win-x64`
 
 The bundled Windows shared library statically links the MSVC runtime, matching the official WebUI Windows distribution and avoiding a separate Visual C++ Redistributable prerequisite.
 
+### Optional Windows NativeAOT static linking
+
+Windows `win-x64` NativeAOT applications can opt into linking WebUI and the
+WebView2 loader directly into the application executable:
+
+```xml
+<PropertyGroup>
+  <PublishAot>true</PublishAot>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <CsWebUiStaticLink>true</CsWebUiStaticLink>
+</PropertyGroup>
+```
+
+Publish normally with `dotnet publish`. The resulting publish directory does
+not need `webui-2.dll` or `WebView2Loader.dll`. The Microsoft Edge WebView2
+Runtime itself remains a system prerequisite when embedded WebView mode is
+used.
+
+Static linking is opt-in and currently supports only `win-x64`. Without
+`CsWebUiStaticLink`, the package retains its normal dynamic-library behavior.
+`WebUiNativeLibrary.SetLibraryPath` and `CSWEBUI_NATIVE_LIBRARY` are bypassed
+in static mode because NativeAOT resolves the WebUI entry points at link time.
+The WebView2 loader redistribution terms are included in the package under
+`licenses/WebView2`.
+
 For a custom or locally built native library, configure it before the first WebUI call:
 
 ```csharp

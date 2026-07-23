@@ -1,0 +1,36 @@
+<Project>
+  <PropertyGroup>
+    <_CsWebUiStaticAssetsRoot Condition="'$(CsWebUiStaticAssetsRoot)' == ''">$(MSBuildThisFileDirectory)native\$(RuntimeIdentifier)</_CsWebUiStaticAssetsRoot>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(CsWebUiStaticLink)' == 'true' and '$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' == 'win-x64'">
+    <DirectPInvoke Include="webui-2" />
+    <NativeLibrary Include="$(_CsWebUiStaticAssetsRoot)\webui-2.lib" />
+    <NativeLibrary Include="$(_CsWebUiStaticAssetsRoot)\WebView2LoaderStatic.lib" />
+    <!-- NativeAOT already links WebUI's other Windows system dependencies. -->
+    <NativeLibrary Include="shell32.lib" />
+  </ItemGroup>
+
+  <Target Name="CsWebUiValidateStaticLink"
+          BeforeTargets="PrepareForILLink;IlcCompile;Publish"
+          Condition="'$(CsWebUiStaticLink)' == 'true'">
+    <Error Condition="'$(PublishAot)' != 'true'"
+           Text="CsWebUiStaticLink requires PublishAot=true." />
+    <Error Condition="'$(RuntimeIdentifier)' != 'win-x64'"
+           Text="CsWebUiStaticLink currently supports only the win-x64 runtime identifier." />
+    <Error Condition="!Exists('$(_CsWebUiStaticAssetsRoot)\webui-2.lib')"
+           Text="The static WebUI archive was not found at '$(_CsWebUiStaticAssetsRoot)\webui-2.lib'." />
+    <Error Condition="!Exists('$(_CsWebUiStaticAssetsRoot)\WebView2LoaderStatic.lib')"
+           Text="The static WebView2 loader archive was not found at '$(_CsWebUiStaticAssetsRoot)\WebView2LoaderStatic.lib'." />
+  </Target>
+
+  <Target Name="CsWebUiRemoveDynamicLibraryFromStaticPublish"
+          AfterTargets="ComputeFilesToPublish"
+          BeforeTargets="CopyFilesToPublishDirectory"
+          Condition="'$(CsWebUiStaticLink)' == 'true' and '$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' == 'win-x64'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'webui-2.dll'" />
+    </ItemGroup>
+  </Target>
+</Project>

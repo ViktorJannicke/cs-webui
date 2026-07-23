@@ -6,3 +6,8 @@ https://github.com/webui-dev/webui
 
 The upstream source revision used by this repository is recorded in flake.nix
 and the native-build workflow.
+
+The optional statically linked Windows build includes WebView2LoaderStatic.lib
+from the Microsoft.Web.WebView2 SDK, version 1.0.4078.44. Its license and
+third-party notices are included under licenses/WebView2 in the
+CsWebUi.Native package.

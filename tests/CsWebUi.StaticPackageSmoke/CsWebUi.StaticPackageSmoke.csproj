@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CsWebUi" Version="$(CsWebUiPackageVersion)" />
+  </ItemGroup>
+
+  <Target Name="ValidatePackageVersion" BeforeTargets="Restore">
+    <Error Condition="'$(CsWebUiPackageVersion)' == ''"
+           Text="Set CsWebUiPackageVersion to the local package version under test." />
+  </Target>
+</Project>
