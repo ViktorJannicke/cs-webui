@@ -41,6 +41,10 @@ jobs:
           ref: ${{ steps.webui-revision.outputs.revision }}
           path: .upstream/webui
 
+      - name: Validate CsWebUi WebUI patches
+        working-directory: .upstream/webui
+        run: git apply --check ../../eng/patches/webui-windows-application-icon.patch
+
       - name: Validate the raw ABI export surface
         shell: bash
         run: bash eng/validate-webui-abi.sh .upstream/webui/include/webui.h
@@ -72,6 +76,10 @@ jobs:
           repository: webui-dev/webui
           ref: ${{ needs.prepare.outputs.revision }}
           path: .upstream/webui
+
+      - name: Apply CsWebUi WebUI patches
+        working-directory: .upstream/webui
+        run: git apply ../../eng/patches/webui-windows-application-icon.patch
 
       - name: Configure shared library
         run: >-

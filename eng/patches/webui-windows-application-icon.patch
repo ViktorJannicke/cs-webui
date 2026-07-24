@@ -1,0 +1,15 @@
+diff --git a/src/webui.c b/src/webui.c
+--- a/src/webui.c
++++ b/src/webui.c
+@@ -12804,8 +12804,9 @@ static WEBUI_THREAD_ROUTINE(_webui_webview_thread, pArg) {
+         wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+         wc.cbClsExtra = 0;
+         wc.cbWndExtra = 0;
+-        wc.hIcon = LoadIcon(GetModuleHandle(NULL) ,MAKEINTRESOURCE(101));    // default user icon resouce : 101
+-        if(!wc.hIcon) wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);            // if not existed, use system default icon
++        wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(101));            // default user icon resource: 101
++        if (!wc.hIcon) wc.hIcon = LoadIcon(wc.hInstance, IDI_APPLICATION);  // otherwise, use the executable's application icon
++        if (!wc.hIcon) wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);          // if not present, use the system default icon
+ 
+         if (!RegisterClassA(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+             _webui_wv_free(win->webView);

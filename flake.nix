@@ -30,6 +30,9 @@
             pname = "webui-2";
             version = "2.5.0-beta.4";
             src = webui;
+            patches = [
+              ./eng/patches/webui-windows-application-icon.patch
+            ];
 
             nativeBuildInputs = [
               pkgs.cmake
