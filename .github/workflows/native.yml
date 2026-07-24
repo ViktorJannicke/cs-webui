@@ -24,7 +24,7 @@ jobs:
     outputs:
       revision: ${{ steps.webui-revision.outputs.revision }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Read pinned WebUI revision
         id: webui-revision
@@ -35,7 +35,7 @@ jobs:
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
 
       - name: Check out pinned WebUI source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: webui-dev/webui
           ref: ${{ steps.webui-revision.outputs.revision }}
@@ -64,10 +64,10 @@ jobs:
           - os: macos-14
             rid: osx-arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check out pinned WebUI source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: webui-dev/webui
           ref: ${{ needs.prepare.outputs.revision }}
@@ -152,7 +152,7 @@ jobs:
           }
 
       - name: Upload native asset
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: webui-native-${{ matrix.rid }}
           path: native-install
@@ -165,9 +165,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts/download
 
@@ -185,7 +185,7 @@ jobs:
           cp artifacts/download/webui-native-win-x64/static/webui-2.lib artifacts/native-static/win-x64/webui-2.lib
           cp artifacts/download/webui-native-win-x64/static/WebView2LoaderStatic.lib artifacts/native-static/win-x64/WebView2LoaderStatic.lib
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -218,7 +218,7 @@ jobs:
           --configuration Release --no-restore --output artifacts/packages
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: packages
           path: artifacts/packages/*.*nupkg
@@ -255,13 +255,13 @@ jobs:
             native_library: libwebui-2.dylib
             executable: CsWebUi.StaticPackageSmoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packages
           path: artifacts/packages
@@ -311,13 +311,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packages
           path: artifacts/packages

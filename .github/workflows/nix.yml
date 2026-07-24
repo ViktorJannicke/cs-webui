@@ -17,9 +17,11 @@ jobs:
   flake:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: DeterminateSystems/nix-installer-action@v20
+      - uses: NixOS/nix-installer-action@v1
+        with:
+          installer-version: 2.35.1
 
       - name: Check flake outputs
         run: nix flake check --accept-flake-config
