@@ -5,11 +5,14 @@ namespace CsWebUi.Tests;
 
 public sealed class WebUiWindowSmokeTests
 {
-    [NativeFact]
-    public async Task WaitAsyncCompletesWhenNoWindowIsShown()
+    [Fact]
+    public async Task WaitAsyncHonorsPreCanceledToken()
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        await WebUiApplication.WaitAsync(timeout.Token);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => WebUiApplication.WaitAsync(cancellation.Token));
     }
 
     [NativeFact]

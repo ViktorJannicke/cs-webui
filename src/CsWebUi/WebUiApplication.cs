@@ -77,9 +77,14 @@ public static class WebUiApplication
     /// </remarks>
     public static async Task WaitAsync(CancellationToken cancellationToken = default)
     {
-        while (WebUiNative.WaitAsync() != 0)
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (WebUiNative.WaitAsync() == 0)
+            {
+                return;
+            }
+
             await Task.Delay(AsyncWaitPollInterval, cancellationToken).ConfigureAwait(false);
         }
     }

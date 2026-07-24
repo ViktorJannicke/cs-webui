@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     webui = {
-      url = "github:webui-dev/webui/6c561ed739ce415e1e48ed17cb67c880aff1dc9d";
+      url = "github:webui-dev/webui/c32f702178b311d7a3ceba107dc2ec3ef3f8f230";
       flake = false;
     };
   };
